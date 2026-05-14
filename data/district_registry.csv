@@ -1,0 +1,7 @@
+district_id,canonical_name,name_variants,population,urbanisation_score,tier
+D01,Bengaluru Urban,"[""Bangalore Urban"", ""BLR Urban""]",11000000,0.95,1
+D02,Bengaluru Rural,"[""Bangalore Rural"", ""Bangaluru Rural""]",1100000,0.45,2
+D03,Mysuru,"[""Mysore""]",3200000,0.55,2
+D04,Hassan,[],1800000,0.3,3
+D05,Tumakuru,"[""Tumkur""]",2700000,0.35,3
+D06,Mandya,[],1900000,0.32,3
