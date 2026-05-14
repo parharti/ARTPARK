@@ -11,6 +11,7 @@ from .forecasters import (
 )
 from .simulator import run_simulation
 from .metrics import compute_metrics, compute_metrics_grouped
+from .probes import reporting_collapse_probe, outbreak_week_probe
 
 __all__ = [
     "load_data",
@@ -27,4 +28,6 @@ __all__ = [
     "run_simulation",
     "compute_metrics",
     "compute_metrics_grouped",
+    "reporting_collapse_probe",
+    "outbreak_week_probe",
 ]

@@ -25,6 +25,7 @@ from forecasting import (  # noqa: E402
     SeasonalNaivePlus, SeasonalNaivePlusV2,
     XGBoostForecaster, XGBoostForecasterV2,
     run_simulation, compute_metrics, compute_metrics_grouped,
+    reporting_collapse_probe, outbreak_week_probe,
 )
 
 ALL_MODELS = {
@@ -71,21 +72,25 @@ def main():
                     help="Last issue ISO week. Default 2024-W48 (4w horizon stays inside data range).")
     ap.add_argument("--no-write", action="store_true",
                     help="Don't write forecast CSVs to submissions/.")
+    ap.add_argument("--no-probes", action="store_true",
+                    help="Skip failure-mode probes (reporting collapse, outbreak weeks).")
     args = ap.parse_args()
 
     print("=" * 70)
     print("Dengue forecasting pipeline")
     print("=" * 70)
 
-    print("\n[1/4] Loading data ...")
+    n_steps = 4 if args.no_probes else 5
+
+    print(f"\n[1/{n_steps}] Loading data ...")
     cases, weather, districts, baseline = load_data()
     df = build_panel(cases, weather, districts)
     print(f"  panel: {df.shape}, {df['week_start'].min().date()} -> {df['week_start'].max().date()}")
 
-    print("\n[2/4] Verifying harness against shipped baseline ...")
+    print(f"\n[2/{n_steps}] Verifying harness against shipped baseline ...")
     verify_harness(df, baseline)
 
-    print("\n[3/4] Running rolling-origin simulator ...")
+    print(f"\n[3/{n_steps}] Running rolling-origin simulator ...")
     first_issue = pd.to_datetime(args.first_issue + "-1", format="%G-W%V-%u")
     last_issue  = pd.to_datetime(args.last_issue  + "-1", format="%G-W%V-%u")
     tier_map = districts.set_index("district_id")["tier"].to_dict()
@@ -108,7 +113,7 @@ def main():
             (fc[cols]).to_csv(out_dir / f"{name}.csv", index=False)
         print(f"  wrote {len(forecasts)} forecast CSVs to submissions/")
 
-    print("\n[4/4] Metrics")
+    print(f"\n[4/{n_steps}] Metrics")
     print("\n--- Headline (all districts, all horizons, full year) ---")
     headline = pd.concat(
         [compute_metrics(fc, name) for name, fc in forecasts.items()],
@@ -125,6 +130,32 @@ def main():
         print(f"\n{name}:")
         print(grouped[["district_id", "n", "mean_actual", "MAE",
                        "MAE_pct_of_mean", "bias", "coverage_80"]].to_string(index=False))
+
+    if not args.no_probes:
+        print(f"\n[5/{n_steps}] Failure-mode probes (see docs/EVAL_DESIGN.md s.9)")
+
+        print("\n--- Probe 1: reporting collapse on D04 (Hassan) ---")
+        print("    Drop the 3 highest surge weeks for D04 by 40%; re-run and compare.")
+        probe1 = reporting_collapse_probe(
+            df,
+            model_classes=[SeasonalNaive, XGBoostForecasterV2],
+            first_issue=first_issue,
+            last_issue=last_issue,
+        )
+        print(f"    Corrupted weeks: {probe1['corrupted_weeks']}")
+        print(f"    Drop: {probe1['drop_pct']*100:.0f}%, "
+              f"recovery window scored: {probe1['recovery_window_weeks']} weeks after last corrupt week")
+        for model_name, r in probe1["models"].items():
+            recov = (f"{r['recovery_weeks_to_within_10pct']}w"
+                     if r["recovery_weeks_to_within_10pct"] is not None
+                     else "not within window")
+            print(f"      {model_name:24s}  clean MAE={r['clean_mae_window']:6.2f}  "
+                  f"corrupted MAE={r['corrupted_mae_window']:6.2f}  "
+                  f"delta={r['delta_mae']:+6.2f}  recovery={recov}")
+
+        print("\n--- Probe 2: outbreak-week performance (>50% week-on-week jump) ---")
+        probe2 = outbreak_week_probe(forecasts, df, jump_threshold=0.50)
+        print(probe2.round(2).to_string(index=False))
 
     print("\nDone.")
 
