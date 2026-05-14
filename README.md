@@ -27,7 +27,8 @@ not the decision.
 │   ├── features.py             Feature builders (Poisson lags, XGBoost lags)
 │   ├── forecasters.py          Forecaster ABC + all 7 model implementations
 │   ├── simulator.py            Rolling-origin simulator (run_simulation)
-│   └── metrics.py              MAE / RMSE / bias / 80%-coverage, headline and grouped
+│   ├── metrics.py              MAE / RMSE / bias / 80%-coverage, headline and grouped
+│   └── probes.py               Failure-mode probes (reporting collapse, outbreak weeks)
 └── submissions/
     └── baseline_seasonal_naive.csv   The shipped seasonal-naive baseline
 ```
@@ -41,10 +42,12 @@ pip install -r requirements.txt
 python run.py
 ```
 
-Outputs are written to `submissions/<model_name>.csv`. To run a subset:
+Outputs are written to `submissions/<model_name>.csv`. To run a subset of models,
+or to skip the failure-mode probes:
 
 ```bash
 python run.py --models seasonal_naive xgboost_with_sn
+python run.py --no-probes
 ```
 
 Or, for the same flow as a notebook:
@@ -91,3 +94,29 @@ Tried in order, all in `src/forecasting/forecasters.py`:
 
 The recommendation is **per-district model assignment**, not one winner — see
 EVAL_DESIGN §7.
+
+## Failure-mode probes
+
+Two probes are part of the deliverable and run by default at the end of `python run.py`.
+Full description in `docs/EVAL_DESIGN.md` §9.
+
+**Probe 1 — reporting collapse.** Drops Hassan's (D04) reported cases by 40% for its
+3 highest surge weeks, then re-runs the candidate models. Predictions are scored against
+the **true** actuals from the clean panel (not the corrupted ones), so the probe measures
+how the corrupted inputs degrade the model — not the trivial fact that the actuals moved.
+
+- `SeasonalNaive` is unaffected (delta MAE = +0.00) — it predicts from last year's same
+  week, so corrupted recent data can't reach it.
+- `XGBoostForecasterV2` shows persistent error and does not recover within a 6-week
+  window after the last corrupt week — its lag features carry the corruption forward.
+- **Operational implication:** any data-quality alert should switch that district to
+  seasonal-naive until the disruption is at least 6 weeks behind.
+
+**Probe 2 — outbreak weeks.** Scores every model only on target weeks where actuals
+jumped > 50% from the prior week (the weeks that actually matter for DHO decisions).
+
+- `SeasonalNaive` outbreak / quiet MAE ratio ≈ 0.75 (actually *better* on outbreaks).
+- `XGBoostForecasterV2` outbreak / quiet MAE ratio ≈ 2× (nearly twice as bad on
+  outbreak weeks).
+- **Operational implication:** seasonal-naive is the more robust choice exactly when
+  the DHO most needs a forecast — sudden surges and after data disruptions.
