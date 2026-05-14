@@ -14,8 +14,12 @@ not the decision.
 ├── run.py                      Single-command pipeline: harness check + every model + metrics + CSVs
 ├── data/                       Raw weekly panels (cases, weather, district registry)
 ├── docs/
+│   ├── REPORT.md               Plain-English verdict and per-district recommendation — start here
 │   ├── PATHWAY_RATIONALE.md    Why Pathway B
-│   └── EVAL_DESIGN.md          Full evaluation design — start here
+│   ├── DATA_EXPLORATION.md     First look at the data; decisions locked in before modelling
+│   ├── EVAL_DESIGN.md          Full evaluation design — metrics, slices, probes, limits
+│   ├── AI_USAGE.md             Honest account of where AI was used, accepted, rejected, verified
+│   └── flowchart.png           Pipeline diagram
 ├── notebooks/
 │   └── dengue_forecasting.ipynb   Thin driver: imports src/, runs the harness, prints tables
 ├── src/forecasting/
@@ -55,14 +59,22 @@ and swapped. The simulator only ever calls `.fit()` and `.predict()` on a
 
 ## Where to read what
 
-- **`docs/PATHWAY_RATIONALE.md`** — why I chose Pathway B and the one concrete risk the
-  design guards against.
-- **`docs/EVAL_DESIGN.md`** — the full evaluation design: decision being informed,
-  rolling-origin split, metrics and why each one, per-district findings, failure-mode
-  probes, what was deliberately left out, and known limitations. This is the
-  primary deliverable.
-- **`notebooks/dengue_forecasting.ipynb`** — minimal end-to-end run that reproduces
-  the numbers cited in `EVAL_DESIGN.md`.
+Suggested reading order:
+
+1. **`docs/REPORT.md`** — plain-English verdict, per-district pilot recommendation,
+   and what would change the verdict. Start here.
+2. **`docs/PATHWAY_RATIONALE.md`** — why I chose Pathway B and the one concrete risk
+   the design guards against.
+3. **`docs/DATA_EXPLORATION.md`** — first look at the data and the five evaluation
+   decisions that were locked in before any modelling.
+4. **`docs/EVAL_DESIGN.md`** — the full evaluation design: rolling-origin split,
+   metrics and why each one, per-district findings, failure-mode probes, what was
+   deliberately left out, and known limitations.
+5. **`docs/AI_USAGE.md`** — honest account of where AI was used, what I accepted,
+   what I rejected, and how the work was verified.
+6. **`docs/flowchart.png`** — pipeline diagram.
+7. **`notebooks/dengue_forecasting.ipynb`** — minimal end-to-end run that reproduces
+   the numbers cited in `EVAL_DESIGN.md`.
 
 ## Models
 
